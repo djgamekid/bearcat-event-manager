@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/navbar";
-import { useEvents } from "../../context/eventContext"; // Import useEvents
+import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../config/firebase';
+import { useAuth } from '../../context/authContext';
 
 function CreateEvent() {
   const navigate = useNavigate();
-  const { addEvent } = useEvents(); // Get addEvent from context
+  const { currentUser } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const [eventDetails, setEventDetails] = useState({
     title: "",
@@ -31,6 +36,18 @@ function CreateEvent() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("File size must be less than 5MB");
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        setError("Only image files are allowed");
+        return;
+      }
+
       setEventDetails((prev) => ({
         ...prev,
         image: file,
@@ -41,23 +58,87 @@ function CreateEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    addEvent(eventDetails); // Add event to global state
-    console.log("Event Created:", eventDetails);
+    setIsSubmitting(true);
+    setError('');
 
-    // Reset form
-    setEventDetails({
-      title: "",
-      date: "",
-      time: "",
-      location: "",
-      description: "",
-      tickets: 0,
-      price: 0,
-      image: null,
-    });
-    setPreview(null);
+    try {
+      // Validate form data
+      if (!eventDetails.title || !eventDetails.date || !eventDetails.time || 
+          !eventDetails.location || !eventDetails.description || !eventDetails.price || 
+          !eventDetails.tickets) {
+        throw new Error('Please fill in all required fields');
+      }
 
-    navigate("/admin-view-events"); // Redirect after submission
+      // Validate ticket fields
+      const ticketsAvailable = parseInt(eventDetails.tickets);
+      if (isNaN(ticketsAvailable) || ticketsAvailable <= 0) {
+        throw new Error("Number of tickets must be greater than 0");
+      }
+
+      if (eventDetails.price < 0) {
+        throw new Error("Price cannot be negative");
+      }
+
+      // Format date and time for Firebase
+      const combinedDateTime = new Date(`${eventDetails.date}T${eventDetails.time}`);
+      
+      // Validate date is in the future
+      if (combinedDateTime <= new Date()) {
+        throw new Error("Event date must be in the future");
+      }
+
+      let imageUrl = null;
+      // Handle image upload if an image was selected
+      if (eventDetails.image) {
+        const imageRef = ref(storage, `events/${Date.now()}_${eventDetails.image.name}`);
+        await uploadBytes(imageRef, eventDetails.image);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
+      // Create event document
+      const eventRef = await addDoc(collection(db, 'events'), {
+        title: eventDetails.title,
+        date: combinedDateTime.toISOString(),
+        time: eventDetails.time,
+        location: eventDetails.location,
+        description: eventDetails.description,
+        tickets: ticketsAvailable,
+        ticketsAvailable: ticketsAvailable,
+        ticketsSold: 0,
+        price: parseFloat(eventDetails.price),
+        imageUrl, // Store the image URL instead of the file
+        createdBy: currentUser.uid,
+        createdAt: new Date().toISOString(),
+        status: 'active'
+      });
+
+      // Log success
+      console.log('Event created successfully:', {
+        eventId: eventRef.id,
+        totalTickets: ticketsAvailable
+      });
+
+      // Reset form
+      setEventDetails({
+        title: "",
+        date: "",
+        time: "",
+        location: "",
+        description: "",
+        tickets: 0,
+        price: 0,
+        image: null,
+      });
+      setPreview(null);
+
+      // Navigate back to events list
+      navigate("/admin-view-events");
+    } catch (err) {
+      console.error("Error creating event:", err);
+      setError(err.message || "Error creating event");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -74,6 +155,12 @@ function CreateEvent() {
           </button>
         </div>
 
+        {error && (
+          <div className="alert alert-error">
+            <span>{error}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6 max-w-xl mx-auto">
           <div>
             <label htmlFor="title" className="block text-lg font-semibold">
@@ -87,6 +174,7 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -102,6 +190,7 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -117,6 +206,7 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -132,6 +222,7 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -146,11 +237,12 @@ function CreateEvent() {
               onChange={handleChange}
               className="textarea textarea-bordered w-full"
               required
+              disabled={isSubmitting}
             />
           </div>
 
-           {/* Image Upload */}
-           <div>
+          {/* Image Upload */}
+          <div>
             <label htmlFor="image" className="block text-lg font-semibold">
               Upload Event Image
             </label>
@@ -160,7 +252,9 @@ function CreateEvent() {
               accept="image/*"
               onChange={handleImageChange}
               className="file-input file-input-bordered w-full"
+              disabled={isSubmitting}
             />
+            <p className="text-sm text-gray-500 mt-1">Max file size: 5MB</p>
           </div>
 
           {/* Image Preview */}
@@ -186,6 +280,8 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              min="0"
+              disabled={isSubmitting}
             />
           </div>
 
@@ -201,12 +297,19 @@ function CreateEvent() {
               onChange={handleChange}
               className="input input-bordered w-full"
               required
+              min="0"
+              step="0.01"
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="flex justify-center">
-            <button type="submit" className="btn btn-primary w-1/2">
-              Create Event
+            <button
+              type="submit"
+              className={`btn btn-primary w-1/2 ${isSubmitting ? 'loading' : ''}`}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Creating Event...' : 'Create Event'}
             </button>
           </div>
         </form>

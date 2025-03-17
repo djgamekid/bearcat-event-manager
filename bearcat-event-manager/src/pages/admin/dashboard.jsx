@@ -1,12 +1,13 @@
 import React from 'react';
 import UpcomingEventsCarousel from './upcoming-events';
 import EventCalendar from './event-calendar';
+import EventAnalytics from './event-analytics';
 
 function Dashboard() {
   return (
     <div className="min-h-screen bg-base-200 py-8 px-4 sm:px-6 md:px-8 lg:px-12">
       {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card 1: Upcoming Events Carousel */}
         <div className="card bg-base-100 shadow-lg">
           <div className="card-body">
@@ -15,24 +16,16 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Card 2: Event Titles & Analytics */}
+        {/* Card 2: Event Analytics */}
         <div className="card bg-base-100 shadow-lg">
           <div className="card-body">
             <h2 className="card-title text-xl font-bold">Event Analytics</h2>
-            {/* Add your analytics here */}
+            <EventAnalytics />
           </div>
         </div>
 
-        {/* Card 3: Graph - Totals in Different Attributes */}
-        <div className="card bg-base-100 shadow-lg">
-          <div className="card-body">
-            <h2 className="card-title text-xl font-bold">Event Statistics</h2>
-            {/* Add your graph here */}
-          </div>
-        </div>
-
-        {/* Card 4: Calendar */}
-        <div className="card bg-base-100 shadow-lg">
+        {/* Card 3: Event Calendar */}
+        <div className="card bg-base-100 shadow-lg lg:col-span-2">
           <div className="card-body">
             <h2 className="card-title text-xl font-bold">Event Calendar</h2>
             <EventCalendar />

@@ -1,40 +1,89 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/authContext";
+import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 
 function Login() {
     const navigate = useNavigate();
+    const { login, error: authError, isAdmin, loading: authLoading } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // State for email and password (Pre-filled values)
-    const [email, setEmail] = useState("admin@example.com");
-    const [password, setPassword] = useState("password123");
+    // State for email and password
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("Login Attempt:", { email, password });
+        setIsLoading(true);
+        setError(null);
 
-        // Redirect to the admin page after submission
-        navigate('/admin');
+        try {
+            await login(email, password);
+            // Wait for auth state to update and role to be checked
+            if (authLoading) {
+                return;
+            }
+            // Redirect based on user role
+            if (isAdmin) {
+                navigate('/admin');
+            } else {
+                navigate('/user');
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to login');
+            console.error('Login error:', err);
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    // Show loading state while checking role
+    if (authLoading) {
+        return (
+            <div className="flex min-h-full flex-1 flex-col justify-center items-center">
+                <span className="loading loading-spinner loading-lg"></span>
+                <p className="mt-4 text-lg">Verifying your account...</p>
+            </div>
+        );
+    }
 
     return (
         <>
             <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
+                {/* Back to Home Button */}
+                <div className="absolute top-4 left-4">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="btn btn-ghost btn-sm gap-2"
+                    >
+                        <ArrowLeftIcon className="h-4 w-4" />
+                        Back to Home
+                    </button>
+                </div>
+
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                     <img
                         alt="Your Company"
-                        src="https://tailwindui.com/plus/img/logos/mark.svg?color=indigo&shade=600"
-                        className="mx-auto h-10 w-auto"
+                        src="./paw.png"
+                        className="mx-auto h-16 w-auto"
                     />
-                    <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
+                    <h2 className="mt-10 text-center text-2xl font-bold tracking-tight">
                         Sign in to your account
                     </h2>
                 </div>
 
                 <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+                    {(error || authError) && (
+                        <div className="alert alert-error mb-4">
+                            <span>{error || authError}</span>
+                        </div>
+                    )}
+
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         {/* Email Field */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+                            <label htmlFor="email" className="block text-sm font-medium">
                                 Email Address
                             </label>
                             <div className="mt-2">
@@ -46,7 +95,8 @@ function Login() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
                                     autoComplete="email"
-                                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+                                    className="input input-bordered w-full"
+                                    disabled={isLoading}
                                 />
                             </div>
                         </div>
@@ -54,13 +104,13 @@ function Login() {
                         {/* Password Field */}
                         <div>
                             <div className="flex items-center justify-between">
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-900">
+                                <label htmlFor="password" className="block text-sm font-medium">
                                     Password
                                 </label>
                                 <div className="text-sm">
-                                    <a href="#" className="font-semibold text-green-600 hover:text-green-800">
+                                    <Link to="/forgot-password" className="font-semibold text-primary hover:text-primary-focus">
                                         Forgot password?
-                                    </a>
+                                    </Link>
                                 </div>
                             </div>
                             <div className="mt-2">
@@ -72,7 +122,8 @@ function Login() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     autoComplete="current-password"
-                                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+                                    className="input input-bordered w-full"
+                                    disabled={isLoading}
                                 />
                             </div>
                         </div>
@@ -81,18 +132,19 @@ function Login() {
                         <div>
                             <button
                                 type="submit"
-                                className="btn btn-primary w-full"
+                                className={`btn btn-primary w-full ${isLoading ? 'loading' : ''}`}
+                                disabled={isLoading}
                             >
-                                Sign in
+                                {isLoading ? 'Signing in...' : 'Sign in'}
                             </button>
                         </div>
                     </form>
 
                     <p className="mt-10 text-center text-sm text-gray-500">
                         Not a member?{' '}
-                        <a href="#" className="text-primary">
+                        <Link to="/signup" className="font-semibold text-primary hover:text-primary-focus">
                             Create an account
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>
