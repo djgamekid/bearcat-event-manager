@@ -4,6 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  build: {
+    outDir: "dist",
+  },
+  server: {
+    port: 5173,
+    host: true,
+  },
   proxy: {
     "/api": {
       target: "https://firestore.googleapis.com",
@@ -11,5 +19,4 @@ export default defineConfig({
       secure: false,
     },
   },
-  plugins: [react(), tailwindcss()],
 })
