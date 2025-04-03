@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTickets } from '../../context/ticketContext';
 import { useEvents } from '../../context/eventContext';
 import { useAuth } from '../../context/authContext';
+import { getAuth } from "firebase/auth";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -14,7 +14,7 @@ function AdminCheckIn() {
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('event');
   const { events } = useEvents();
-  const { isAdmin } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [selectedEvent, setSelectedEvent] = useState('');
   const [checkInCode, setCheckInCode] = useState('');
   const [error, setError] = useState('');
@@ -142,9 +142,18 @@ function AdminCheckIn() {
     setSuccess('');
 
     try {
-      if (!isAdmin) {
-        throw new Error('Unauthorized: Admin access required');
+      // Make sure user is authenticated
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        setError('You must be logged in to check in tickets');
+        setLoading(false);
+        return;
+
       }
+      // Force token refresh before calling the function
+      await user.getIdToken(true);
 
       // Find ticket by check-in code
       const ticketsRef = collection(db, 'tickets');
@@ -156,25 +165,28 @@ function AdminCheckIn() {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error('Invalid check-in code or ticket not found');
+        setError('No ticket found with this code');
+        setLoading(false);
+        return;
       }
 
       const ticketDoc = querySnapshot.docs[0];
-      const ticketData = ticketDoc.data();
+      const ticketId = ticketDoc.id;
 
       // Call the Cloud Function to check in the ticket
       const result = await checkInTicketFunction({
-        ticketId: ticketDoc.id,
+        ticketId: ticketId,
         checkInCode: code
       });
+
+      console.log("Check-in result:", result.data);
 
       if (result.data.success) {
         setSuccess('Ticket checked in successfully!');
         setCheckInCode('');
         setLastCheckedIn({
-          ...ticketData,
-          id: ticketDoc.id,
-          checkedInAt: new Date().toLocaleString()
+          ticket: ticketDoc.data(),
+          timestamp: new Date().toLocaleTimeString()
         });
       }
     } catch (err) {

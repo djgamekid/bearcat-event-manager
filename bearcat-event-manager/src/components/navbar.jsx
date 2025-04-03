@@ -97,7 +97,7 @@ function Navbar() {
           <div className="hidden md:flex items-center gap-2 mr-8">
             <Link to="/admin-view-events" className="btn btn-ghost">View Events</Link>
             <Link to="/admin-users" className="btn btn-ghost">Users</Link>
-            <Link to="/attendance" className="btn btn-ghost">Attendance</Link>
+            <Link to="/admin-attendance" className="btn btn-ghost">Attendance</Link>
             <button
               onClick={handleViewAsUser}
               className="btn btn-primary btn-sm"

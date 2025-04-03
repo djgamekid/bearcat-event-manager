@@ -4,23 +4,28 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 
 // Function to send email
-exports.sendEmail = functions.https.onCall(async (data, context) => {
+exports.sendEmail = functions.https.onCall({
+  region: "us-central1",  // Specify your region
+}, async (request) => {
+  const { data, auth } = request;
+
   // Check if user is authenticated
-  if (!context.auth) {
+  if (!auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
   const { to, subject, html } = data;
+  let emailRef;
 
   try {
     // Create a new email document in the emails collection
-    const emailRef = await admin.firestore().collection('emails').add({
+    emailRef = await admin.firestore().collection('emails').add({
       to,
       subject,
       html,
       status: 'pending',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      userId: context.auth.uid
+      userId: auth.uid  // Use auth.uid instead of context.auth.uid
     });
 
     // The actual email sending will be handled by the Firebase Extension
@@ -56,19 +61,39 @@ exports.sendEmail = functions.https.onCall(async (data, context) => {
 });
 
 // Function to handle ticket check-in
-exports.checkInTicket = functions.https.onCall(async (data, context) => {
-  console.log('context.auth:', context.auth); // This will show the authentication context
-  // Verify authentication
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+exports.checkInTicket = functions.https.onCall({
+  region: "us-central1",   // Specify your region
+}, async (request) => {
+  const { data, auth } = request;
+  console.log('Function called with data:', data);
+  console.log('Authentication context:', auth);
+
+  // Verify authentication with more descriptive error
+  if (!auth) {
+    console.error('Authentication missing in request:', request);
+    throw new functions.https.HttpsError(
+        'unauthenticated',
+        'User must be authenticated to check in tickets. Please log out and log in again.'
+    );
   }
 
   const { ticketId, checkInCode } = data;
 
+  // Rest of your function remains the same but use auth instead of context.auth
+  console.log(`Processing check-in for ticket ${ticketId} with code ${checkInCode}`);
+
   try {
-    // Get user role
-    const adminDoc = await admin.firestore().collection('users').doc(context.auth.uid).get();
-    const isAdmin = adminDoc.exists && adminDoc.data().role === 'admin';
+    // Get user role - use auth.uid instead of context.auth.uid
+    const adminDoc = await admin.firestore().collection('users').doc(auth.uid).get();
+
+    if (!adminDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User profile not found');
+    }
+
+    const userData = adminDoc.data();
+    const isAdmin = userData && (userData.role === 'admin' || userData.role === 'ADMIN');
+
+    console.log('User role check:', userData.role, 'isAdmin:', isAdmin);
 
     if (!isAdmin) {
       throw new functions.https.HttpsError('permission-denied', 'Only admins can check in tickets');
@@ -97,7 +122,7 @@ exports.checkInTicket = functions.https.onCall(async (data, context) => {
     await admin.firestore().collection('tickets').doc(ticketId).update({
       checkedIn: true,
       checkedInAt: admin.firestore.FieldValue.serverTimestamp(),
-      checkedInBy: context.auth.uid,
+      checkedInBy: auth.uid, // Use auth.uid instead of context.auth.uid
       status: 'used'
     });
 
@@ -123,9 +148,10 @@ exports.checkInTicket = functions.https.onCall(async (data, context) => {
       }
     });
 
-    return { success: true, ticketId };
+    // Return success
+    return { success: true, message: 'Ticket checked in successfully' };
   } catch (error) {
-    console.error('Error checking in ticket:', error);
+    console.error('Check-in error:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });

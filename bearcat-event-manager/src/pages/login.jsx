@@ -5,7 +5,7 @@ import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 
 function Login() {
     const navigate = useNavigate();
-    const { login, error: authError, isAdmin, loading: authLoading } = useAuth();
+    const { login, error: authError, isAdmin, loading: authLoading, currentUser } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -13,6 +13,7 @@ function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
+    // In login.jsx
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -20,16 +21,7 @@ function Login() {
 
         try {
             await login(email, password);
-            // Wait for auth state to update and role to be checked
-            if (authLoading) {
-                return;
-            }
-            // Redirect based on user role
-            if (isAdmin) {
-                navigate('/admin');
-            } else {
-                navigate('/user');
-            }
+            // Don't redirect here - let useEffect handle it
         } catch (err) {
             setError(err.message || 'Failed to login');
             console.error('Login error:', err);
@@ -37,6 +29,18 @@ function Login() {
             setIsLoading(false);
         }
     };
+
+// Add this useEffect to handle redirection after successful login
+    useEffect(() => {
+        if (currentUser && !authLoading) {
+            // User is authenticated and role check is complete
+            if (isAdmin) {
+                navigate('/admin');
+            } else {
+                navigate('/user');
+            }
+        }
+    }, [currentUser, authLoading, isAdmin, navigate]);
 
     // Show loading state while checking role
     if (authLoading) {

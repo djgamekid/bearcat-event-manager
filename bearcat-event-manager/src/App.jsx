@@ -19,6 +19,7 @@ import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import AdminProfile from './pages/admin/admin-profile';
 import AdminSettings from './pages/admin/admin-settings';
 import AdminCheckIn from './pages/admin/admin-checkin';
+import AdminAttendance from "./pages/admin/admin-attendance.jsx";
 import UserEvents from "./pages/user/user-events";
 import Landing from './pages/landing';
 import TicketConfirmation from './pages/user/ticket-confirmation';
@@ -91,6 +92,11 @@ function App() {
               <Route path="/admin-checkin" element={
                 <ProtectedAdminRoute>
                   <AdminCheckIn />
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin-attendance" element={
+                <ProtectedAdminRoute>
+                  <AdminAttendance />
                 </ProtectedAdminRoute>
               } />
             </Routes>
