@@ -13,10 +13,10 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
-    - name: Change to Code Folder
-      run: cd bearcat-event-manager
     - name: Install dependencies
-      run: npm install
+      run: |
+        cd bearcat-event-manager
+        npm install
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
