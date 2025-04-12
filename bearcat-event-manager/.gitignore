@@ -25,3 +25,9 @@ cors.json
 *.sw?
 .env
 .firebaserc
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
